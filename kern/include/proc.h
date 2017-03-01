@@ -71,6 +71,13 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+
+	//Added
+	/* Global Thread ID integer */
+	int thread_counter;
+	
+	bool * exited_threads;
+	//End
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

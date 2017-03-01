@@ -110,6 +110,11 @@ struct thread {
 	bool t_did_reserve_buffers;	/* reserve_buffers() in effect */
 
 	/* add more here as needed */
+	int tid;	/* I.D. number of thread */
+	int parent_tid; /* for thread_join, check to see that it mathces with calling function */
+	struct semaphore * join_sem;
+	bool isJoinable;
+
 };
 
 /*
@@ -149,10 +154,24 @@ int thread_fork(const char *name, struct proc *proc,
                 void *data1, unsigned long data2);
 
 /*
+ * Make a new thread and return a pointer to it
+ */
+struct thread * thread_fork_join(const char *name, struct proc *proc,
+                void (*func)(void *, unsigned long),
+                void *data1, unsigned long data2);
+
+/*
  * Cause the current thread to exit.
  * Interrupts need not be disabled.
  */
 __DEAD void thread_exit(void);
+
+/*
+ * Cause the parent thread to wait on the passed thread to end
+ *
+ */
+int thread_join(struct thread *);
+
 
 /*
  * Cause the current thread to yield to the next runnable thread, but

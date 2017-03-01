@@ -116,7 +116,6 @@ runthreads(int doloud)
 	}
 }
 
-
 int
 threadtest(int nargs, char **args)
 {
@@ -127,6 +126,8 @@ threadtest(int nargs, char **args)
 	kprintf("Starting thread test...\n");
 	runthreads(1);
 	kprintf("\nThread test done.\n");
+
+
 
 	return 0;
 }

@@ -108,5 +108,7 @@ void menu(char *argstr);
 /* The main function, called from start.S. */
 void kmain(char *bootstring);
 
+int asst1_tests(int, char **);
+//int join_test(int, char **);
 
 #endif /* _TEST_H_ */

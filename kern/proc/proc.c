@@ -48,7 +48,7 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
-
+#include <synch.h>
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -81,6 +81,11 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+
+	//Added
+	proc->thread_counter = 0;
+	proc->exited_threads = kmalloc(sizeof(proc->exited_threads) * 10);
+	//end
 
 	return proc;
 }
@@ -166,6 +171,7 @@ proc_destroy(struct proc *proc)
 	}
 
 	KASSERT(proc->p_numthreads == 0);
+	kfree(proc->exited_threads);
 	spinlock_cleanup(&proc->p_lock);
 
 	kfree(proc->p_name);

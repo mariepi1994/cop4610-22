@@ -262,6 +262,7 @@ runtest3(int nsleeps, int ncomputes)
 int
 threadtest3(int nargs, char **args)
 {
+
 	if (nargs==1) {
 		runtest3(5, 2);
 	}
@@ -272,5 +273,6 @@ threadtest3(int nargs, char **args)
 		kprintf("Usage: tt3 [sleepthreads computethreads]\n");
 		return 1;
 	}
+	
 	return 0;
 }

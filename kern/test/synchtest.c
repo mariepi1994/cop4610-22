@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2000, 2001, 2002, 2003, 2004, 2005, 2008, 2009
  *	The President and Fellows of Harvard College.
@@ -195,13 +196,22 @@ locktestthread(void *junk, unsigned long num)
 int
 locktest(int nargs, char **args)
 {
+	/*Unit testing for lock create: */
+	kprintf("Unit test for lock create.... \n");
+	struct lock *lk = lock_create("lk");
+
+	lock_destroy(lk);
+
+	kprintf("Lock test creation has passed!\n\n\n");
+	
+
 	int i, result;
 
 	(void)nargs;
 	(void)args;
 
 	inititems();
-	kprintf("Starting lock test...\n");
+	kprintf("Starting lock testhi...\n");
 
 	for (i=0; i<NTHREADS; i++) {
 		result = thread_fork("synchtest", NULL, locktestthread,
@@ -269,6 +279,14 @@ cvtestthread(void *junk, unsigned long num)
 int
 cvtest(int nargs, char **args)
 {
+	/*We first test cv create*/
+	kprintf("Testing CV create\n");
+	struct cv *cv = cv_create("cv");
+	cv_destroy(cv);
+	kprintf("Testing CV create has Passed!\n");
+	/*finished testing cv  create*/
+	
+	/*Now we are testing cv signal which should test both locks and cv*/
 
 	int i, result;
 

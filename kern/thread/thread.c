@@ -151,8 +151,34 @@ thread_create(const char *name)
 	thread->t_did_reserve_buffers = false;
 
 	/* If you add to struct thread, be sure to initialize here */
+	thread->join_sem = sem_create("join_sem", 0);
+
 
 	return thread;
+}
+
+/*
+ * thread_join(*thread)
+ * Takes the TCB passed by a parent process.
+ * Returns thread ID integer of the process 
+ * being joined.
+ */
+int thread_join(struct thread * childThread)
+{
+	
+	int return_tid;
+	if(childThread != NULL)
+		return_tid = childThread->tid;
+	else
+		return -1;
+	if(curthread->tid == childThread->parent_tid)
+		while(curproc->exited_threads[return_tid] != true)
+			thread_yield();
+	else
+		return -1;	/* thread is not parent of child */
+	
+	V(childThread->join_sem);
+	return return_tid;
 }
 
 /*
@@ -536,6 +562,32 @@ thread_fork(const char *name,
 		thread_destroy(newthread);
 		return result;
 	}
+	//Added
+	newthread->join_sem = sem_create("join_sem", 0);
+	newthread->isJoinable = false;
+	int spl = splhigh();	//disableInterrupts
+	newthread->tid = curproc->thread_counter;
+	
+	if(curproc->p_numthreads == 0)
+		newthread->parent_tid = 0;
+	else
+		newthread->parent_tid = curthread->tid;
+	
+	//thread->
+	curproc->thread_counter += 1;
+	
+	//krealloc implementation
+	if(curproc->thread_counter == (sizeof(curproc->exited_threads) / sizeof(curproc->exited_threads[0])))
+	{
+		bool * newptr;
+		newptr = kmalloc(2*curproc->thread_counter*sizeof(curproc->exited_threads));
+		memcpy(newptr, curproc->exited_threads, curproc->thread_counter * sizeof(curproc->exited_threads));
+		kfree(curproc->exited_threads);
+		curproc->exited_threads = newptr;
+	}
+	splx(spl); //enableInterrupts();
+	//End
+
 
 	/*
 	 * Because new threads come out holding the cpu runqueue lock
@@ -552,6 +604,92 @@ thread_fork(const char *name,
 
 	return 0;
 }
+
+/*
+ * Custom thread_fork implementation for joinable threads
+ */
+struct thread *
+thread_fork_join(const char *name,
+	    struct proc *proc,
+	    void (*entrypoint)(void *data1, unsigned long data2),
+	    void *data1, unsigned long data2)
+{
+	struct thread *newthread;
+	int result;
+
+	newthread = thread_create(name);
+	if (newthread == NULL) {
+		return NULL;
+	}
+
+	/* Allocate a stack */
+	newthread->t_stack = kmalloc(STACK_SIZE);
+	if (newthread->t_stack == NULL) {
+		thread_destroy(newthread);
+		return NULL;
+	}
+	thread_checkstack_init(newthread);
+
+	/*
+	 * Now we clone various fields from the parent thread.
+	 */
+
+	/* Thread subsystem fields */
+	newthread->t_cpu = curthread->t_cpu;
+
+	/* Attach the new thread to its process */
+	if (proc == NULL) {
+		proc = curthread->t_proc;
+	}
+	result = proc_addthread(proc, newthread);
+	if (result) {
+		/* thread_destroy will clean up the stack */
+		thread_destroy(newthread);
+		return NULL;
+	}
+	//Added
+	int spl = splhigh();	//disableInterrupts
+	newthread->isJoinable = true;
+	newthread->tid = curproc->thread_counter;
+	
+	if(curproc->p_numthreads == 0)
+		newthread->parent_tid = 0;
+	else
+		newthread->parent_tid = curthread->tid;
+	
+	//thread->
+	curproc->thread_counter += 1;
+	
+	//krealloc implementation
+	if(curproc->thread_counter == (sizeof(curproc->exited_threads) / sizeof(curproc->exited_threads[0])))
+	{
+		bool * newptr;
+		newptr = kmalloc(2*curproc->thread_counter*sizeof(curproc->exited_threads));
+		memcpy(newptr, curproc->exited_threads, curproc->thread_counter * sizeof(curproc->exited_threads));
+		kfree(curproc->exited_threads);
+		curproc->exited_threads = newptr;
+	}
+	splx(spl); //enableInterrupts();
+	//End
+
+
+	/*
+	 * Because new threads come out holding the cpu runqueue lock
+	 * (see notes at bottom of thread_switch), we need to account
+	 * for the spllower() that will be done releasing it.
+	 */
+	newthread->t_iplhigh_count++;
+
+	/* Set up the switchframe so entrypoint() gets called */
+	switchframe_init(newthread, entrypoint, data1, data2);
+
+	/* Lock the current cpu's run queue and make the new thread runnable */
+	thread_make_runnable(newthread, false);
+
+	return newthread;
+}
+
+
 
 /*
  * High level, machine-independent context switch code.
@@ -768,6 +906,7 @@ thread_startup(void (*entrypoint)(void *data1, unsigned long data2),
 	/* Call the function. */
 	entrypoint(data1, data2);
 
+
 	/* Done. */
 	thread_exit();
 }
@@ -794,6 +933,15 @@ thread_exit(void)
 	 * Detach from our process. You might need to move this action
 	 * around, depending on how your wait/exit works.
 	 */
+
+	//Added
+	curproc->exited_threads[cur->tid] = true;
+
+	if(cur->isJoinable)
+		P(cur->join_sem);
+
+	//End
+
 	proc_remthread(cur);
 
 	/* Make sure we *are* detached (move this only if you're sure!) */
